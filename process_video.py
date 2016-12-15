@@ -7,17 +7,35 @@ import time
 import sys
 import json
 import os
+import argparse
+
+parser = argparse.ArgumentParser(description='Convert video files into "movie barcodes".')
+parser.add_argument('infile', help='Video file to be processed.')
+parser.add_argument('outfile', nargs='?', help='File to write barcode to.')
+parser.add_argument('--gradient', help='File to write barcode to.', action='store_true')
+parser.add_argument('--gradient_ratio', help='Defines how much of the image should be shaded.', type=float, default=3.)
+parser.add_argument('--initial_opacity', help='The opacity of the darkest point of the gradient.', type=float, default=1.)
+parser.add_argument('--width', help='Specify the barcode image width in pixels.', type=int, default=5000)
+args = parser.parse_args();
+
+if not os.path.exists(args.infile):
+    parser.error('Input file {} does not exist.'.format(args.infile))
+
+if args.outfile and os.path.exists(args.outfile):
+    parser.error('Output file {} already exists.'.format(args.outfile))
 
 scriptdir = os.path.dirname(os.path.realpath(sys.argv[0]))
 
-outputWidth = 5000
+outputWidth = args.width
+filename = args.infile
+outFilename = args.outfile if args.outfile else os.path.splitext(filename)[0] + ".png"
 
-print ""
 print ""
 
 # Timestamp so you can see how long it took
 start_time = "Script started at " + time.strftime("%H:%M:%S")
 print start_time
+print ""
 
 # optional starting time hh:mm:ss.ff; default value set to 00:00:00.0
 hh = "%02d" % (0,)
@@ -25,17 +43,10 @@ mm = ":%02d" % (0,)
 ss = ":%02d" % (0,)
 ff = ".0"
 print "Timestamp for first frame: "+hh+mm+ss+ff
-
-filename = str(sys.argv[1])
-outfilename = ""
-
-if len(sys.argv) > 2:
-    outfilename = sys.argv[2]
-else:
-    outfilename = os.path.splitext(filename)[0] + ".png"
-
+print ""
 print "Filename:", filename
-print "Output filename:", outfilename
+print "Output filename:", outFilename
+print "Gradient:", 'Yes' if args.gradient else 'No'
 
 FFPROBE_BIN = scriptdir + "\\ffprobe"
 command = [ FFPROBE_BIN,
@@ -81,6 +92,7 @@ else:
 step = int(round(nbFrames / outputWidth))
 sampleCount = int(round(nbFrames / step))
 
+print "Frame Count:",nbFrames
 print "Frame Step:",step
 print "Requested Output Width: {}px".format(outputWidth)
 print "Actual Output Width:  {}px".format(sampleCount)
@@ -90,7 +102,6 @@ frameHeight = stream['height']
 frameWidth = stream['width']
 
 print "Video Dimensions: {}x{}px".format(frameWidth,frameHeight)
-print "Frame Count:",nbFrames
 print ""
 
 ###
@@ -99,6 +110,8 @@ print ""
 # Open the video file. In Windows you might need to use FFMPEG_BIN="ffmpeg.exe"; Linux/OSX should be OK.
 FFMPEG_BIN = scriptdir + "\\ffmpeg"
 command = [ FFMPEG_BIN,
+            '-v', 'quiet',
+            '-stats',
             '-threads', '4',
             '-ss', hh+mm+ss,
             '-i', filename,
@@ -110,6 +123,8 @@ command = [ FFMPEG_BIN,
 print ""
 print 'ffmpeg command: ' + ' '.join(command);
 print ""
+
+sys.stdout.flush();
 
 pipe = sp.Popen(command, stdout = sp.PIPE, bufsize=10**8)
 
@@ -151,7 +166,30 @@ for rgb_tuple in rgb_list:
     draw.line((x_pixel,0,x_pixel,image_height), fill=rgb_tuple)
     x_pixel = x_pixel + 1
 
-new.save(outfilename)
+if args.gradient:
+    gradient = args.gradient_ratio
+    initial_opacity = args.initial_opacity
+
+    new = new.convert('RGBA')
+    imageWidth, imageHeight = new.size
+
+    alpha_gradient = Image.new('L', (1, imageHeight), color=0xFF)
+    for y in range(imageHeight):
+        pos = y if y < imageHeight / 2. else imageHeight - y
+        a = int((initial_opacity * 255.) * (1. - gradient * float(pos)/imageHeight))
+        if a > 0:
+            alpha_gradient.putpixel((0, y), a)
+        else:
+            alpha_gradient.putpixel((0, y), 0)
+        # print '{}, {:.2f}, {}'.format(x, float(x) / width, a)
+    alpha = alpha_gradient.resize(new.size)
+
+    black_im = Image.new('RGBA', (imageWidth, imageHeight), color=0) # i.e. black
+    black_im.putalpha(alpha)
+
+    new = Image.alpha_composite(new, black_im)
+
+new.save(outFilename)
 
 print ""
 print start_time
