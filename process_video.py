@@ -8,6 +8,8 @@ import sys
 import json
 import os
 
+scriptdir = os.path.dirname(os.path.realpath(sys.argv[0]))
+
 outputWidth = 5000
 
 print ""
@@ -35,7 +37,7 @@ else:
 print "Filename:", filename
 print "Output filename:", outfilename
 
-FFPROBE_BIN = "ffprobe"
+FFPROBE_BIN = scriptdir + "\\ffprobe"
 command = [ FFPROBE_BIN,
             '-v', 'quiet',
             '-print_format', 'json',
@@ -64,7 +66,7 @@ stream = ffprobeOutput['streams'][0]
 if 'nb_frames' in stream and int(stream['nb_frames']) > 0:
     nbFrames = int(stream['nb_frames'])
 elif 'duration' in format and 'r_frame_rate' in stream:
-    warning("Guessing number of frames from duration!")
+    print "Guessing number of frames from duration!"
 
     if stream['r_frame_rate'].find('/') != -1:
         fps_parts = stream['r_frame_rate'].split('/')
@@ -95,7 +97,7 @@ print ""
 ### This section: credit to http://zulko.github.io/blog/2013/09/27/read-and-write-video-frames-in-python-using-ffmpeg/
 
 # Open the video file. In Windows you might need to use FFMPEG_BIN="ffmpeg.exe"; Linux/OSX should be OK.
-FFMPEG_BIN = "ffmpeg"
+FFMPEG_BIN = scriptdir + "\\ffmpeg"
 command = [ FFMPEG_BIN,
             '-threads', '4',
             '-ss', hh+mm+ss,
@@ -149,7 +151,6 @@ for rgb_tuple in rgb_list:
     draw.line((x_pixel,0,x_pixel,image_height), fill=rgb_tuple)
     x_pixel = x_pixel + 1
 
-new.show()
 new.save(outfilename)
 
 print ""
