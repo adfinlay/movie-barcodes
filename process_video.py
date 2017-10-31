@@ -12,7 +12,7 @@ import argparse
 parser = argparse.ArgumentParser(description='Convert video files into "movie barcodes".')
 parser.add_argument('infile', help='Video file to be processed.')
 parser.add_argument('outfile', nargs='?', help='File to write barcode to.')
-parser.add_argument('--gradient', help='File to write barcode to.', action='store_true')
+parser.add_argument('--gradient', help='Apply a "fade-to-black" gradient at the top and bottom of the image.', action='store_true')
 parser.add_argument('--gradient_ratio', help='Defines how much of the image should be shaded.', type=float, default=3.)
 parser.add_argument('--initial_opacity', help='The opacity of the darkest point of the gradient.', type=float, default=1.)
 parser.add_argument('--width', help='Specify the barcode image width in pixels.', type=int, default=5000)
